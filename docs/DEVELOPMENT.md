@@ -1,16 +1,22 @@
-# 开发文档
+# WPF 多渲染坐标绘图架构
 
-## 坐标系规范
+主界面采用左侧渲染方式菜单、右侧 `ContentControl` 工作区。所有渲染器共享 `DrawingDocument`、`CoordinateTransform` 和图形模型，切换渲染方式不会丢失图形。
 
-世界坐标原点固定在视口中心，X 轴向右、Y 轴向上。网格刻度根据缩放比例在 25/50/100 等级间自适应，避免缩放后刻度过密。所有图元保存世界坐标，因此平移和缩放不会改变图形的真实位置。
+## 渲染器
 
-## 事件与性能
+- `CanvasRenderer`：以 `Canvas` 作为宿主，适合组合 WPF 子元素。
+- `FrameworkRenderer`：重写 `OnRender`，使用 `DrawingContext` 即时绘制。
+- `DrawingVisualRenderer`：使用独立 `DrawingVisual`，适合批量图形和缓存。
+- `SkiaRenderer`：使用 `SKElement` 和 SkiaSharp 绘制，适合跨平台绘图能力扩展。
+- `BitmapRenderer`：使用 `RenderTargetBitmap` 生成 `Image`，适合快照和像素输出场景。
 
-缩放使用 `CoordinateTransform.ZoomAt`：先求鼠标位置对应的世界坐标，再调整比例并修正 Offset，确保锚点不漂移。平移只修改 Offset。绘制采用立即模式，适用于 Demo 和中等数量图元；大量图元应改成 DrawingVisual 缓存或 SkiaSharp 批绘。
+## 配置和工具
 
-## 扩展清单
+`CoordinateTransform.AxisMode` 支持四象限、第一象限、第二象限；`WpfDrawingTools` 负责坐标轴、网格、刻度和全部图形几何。图形仅保存世界坐标，缩放与平移只改变变换配置。
 
-1. 将 `DrawShape` 改为可序列化 DTO，增加旋转、线宽、颜色、Tag 样式。
-2. 抽取 `IRenderer`，为五种后端实现同一套绘制协议。
-3. 增加选择、框选、编辑 Tag、撤销/重做及 JSON 导入导出。
-4. 为坐标变换和各图形几何增加单元测试。
+## 运行
+
+```bash
+dotnet restore
+dotnet run
+```
