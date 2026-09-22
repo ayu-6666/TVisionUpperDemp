@@ -11,7 +11,9 @@ public interface IRenderSurface
     void Refresh();
 }
 
-public interface IRenderPage : IRenderSurface { }
+public interface IRenderPage : IRenderSurface
+{
+}
 
 public abstract class RenderPageBase : UserControl, IRenderPage
 {
@@ -22,6 +24,7 @@ public abstract class RenderPageBase : UserControl, IRenderPage
     }
 
     public UIElement Element => this;
+
     public abstract void Refresh();
 }
 
@@ -35,15 +38,19 @@ public abstract class InteractiveRenderSurface : FrameworkElement, IRenderSurfac
         Document = document;
         Focusable = true;
         ClipToBounds = true;
-        Background = new SolidColorBrush(Color.FromRgb(9, 17, 29));
     }
 
     public UIElement Element => this;
+
     public abstract void Refresh();
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
-        Document.Transform.ZoomAt(e.GetPosition(this), e.Delta > 0 ? 1.15 : 0.87, RenderSize);
+        Document.Transform.ZoomAt(
+            e.GetPosition(this),
+            e.Delta > 0 ? 1.15 : 0.87,
+            RenderSize);
+
         Refresh();
         e.Handled = true;
     }
@@ -52,6 +59,7 @@ public abstract class InteractiveRenderSurface : FrameworkElement, IRenderSurfac
     {
         _dragStart = e.GetPosition(this);
         CaptureMouse();
+        e.Handled = true;
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -71,12 +79,19 @@ public abstract class InteractiveRenderSurface : FrameworkElement, IRenderSurfac
     {
         _dragStart = null;
         ReleaseMouseCapture();
+        e.Handled = true;
     }
 
     protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
     {
         var position = Document.Transform.ToWorld(e.GetPosition(this), RenderSize);
-        Document.Shapes.Add(new DrawShape(ShapeKind.Ellipse, position, $"Tag-{DateTime.Now:HHmmss}", 42));
+        Document.Shapes.Add(new DrawShape(
+            ShapeKind.Ellipse,
+            position,
+            $"Tag-{DateTime.Now:HHmmss}",
+            42));
+
         Refresh();
+        e.Handled = true;
     }
 }

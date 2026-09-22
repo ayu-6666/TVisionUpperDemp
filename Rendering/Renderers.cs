@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SkiaSharp;
+using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
 using TVisionUpperDemp.Models;
 
@@ -10,16 +11,25 @@ namespace TVisionUpperDemp.Rendering;
 
 public sealed class FrameworkElementSurface : InteractiveRenderSurface
 {
-    public FrameworkElementSurface(DrawingDocument document) : base(document) { }
+    public FrameworkElementSurface(DrawingDocument document)
+        : base(document)
+    {
+    }
+
     public override void Refresh() => InvalidateVisual();
-    protected override void OnRender(DrawingContext drawingContext) => WpfCoordinateTools.DrawScene(drawingContext, Document, RenderSize);
+
+    protected override void OnRender(DrawingContext drawingContext)
+    {
+        WpfCoordinateTools.DrawScene(drawingContext, Document, RenderSize);
+    }
 }
 
 public sealed class DrawingVisualSurface : InteractiveRenderSurface
 {
     private readonly DrawingVisual _visual = new();
 
-    public DrawingVisualSurface(DrawingDocument document) : base(document)
+    public DrawingVisualSurface(DrawingDocument document)
+        : base(document)
     {
         AddVisualChild(_visual);
         AddLogicalChild(_visual);
@@ -32,6 +42,7 @@ public sealed class DrawingVisualSurface : InteractiveRenderSurface
     }
 
     protected override int VisualChildrenCount => 1;
+
     protected override Visual GetVisualChild(int index) => _visual;
 }
 
@@ -42,7 +53,11 @@ public sealed class CanvasSurface : Canvas, IRenderSurface
     public CanvasSurface(DrawingDocument document)
     {
         Background = new SolidColorBrush(Color.FromRgb(9, 17, 29));
-        _renderer = new FrameworkElementSurface(document) { IsHitTestVisible = false };
+        _renderer = new FrameworkElementSurface(document)
+        {
+            IsHitTestVisible = false
+        };
+
         Children.Add(_renderer);
         SizeChanged += (_, _) => ResizeRenderer();
     }
@@ -70,29 +85,58 @@ public sealed class SkiaSharpSurface : SKElement, IRenderSurface
     {
         _document = document;
         PaintSurface += OnPaintSurface;
-        Background = new SolidColorBrush(Color.FromRgb(9, 17, 29));
     }
 
     public UIElement Element => this;
+
     public void Refresh() => InvalidateVisual();
 
     private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs args)
     {
         var canvas = args.Surface.Canvas;
         canvas.Clear(new SKColor(9, 17, 29));
-        var origin = _document.Transform.ToScreen(new Point(), new Size(args.Info.Width, args.Info.Height));
-        using var pen = new SKPaint { Color = new SKColor(76, 164, 232), StrokeWidth = 2, IsAntialias = true, Style = SKPaintStyle.Stroke };
-        canvas.DrawLine(0, (float)origin.Y, args.Info.Width, (float)origin.Y, pen);
-        canvas.DrawLine((float)origin.X, 0, (float)origin.X, args.Info.Height, pen);
+
+        var size = new Size(args.Info.Width, args.Info.Height);
+        var origin = _document.Transform.ToScreen(new Point(), size);
+
+        using var axisPen = new SKPaint
+        {
+            Color = new SKColor(76, 164, 232),
+            StrokeWidth = 2,
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke
+        };
+
+        canvas.DrawLine(0, (float)origin.Y, args.Info.Width, (float)origin.Y, axisPen);
+        canvas.DrawLine((float)origin.X, 0, (float)origin.X, args.Info.Height, axisPen);
 
         foreach (var shape in _document.Shapes)
         {
-            var point = _document.Transform.ToScreen(shape.Position, new Size(args.Info.Width, args.Info.Height));
+            var point = _document.Transform.ToScreen(shape.Position, size);
             var radius = (float)(shape.Size * _document.Transform.Scale);
-            using var shapePen = new SKPaint { Color = new SKColor(77, 205, 185), StrokeWidth = 2, IsAntialias = true, Style = SKPaintStyle.Stroke };
+
+            using var shapePen = new SKPaint
+            {
+                Color = new SKColor(77, 205, 185),
+                StrokeWidth = 2,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke
+            };
+
             canvas.DrawCircle((float)point.X, (float)point.Y, Math.Max(3, radius), shapePen);
-            using var text = new SKPaint { Color = SKColors.White, TextSize = 13, IsAntialias = true };
-            canvas.DrawText(shape.Tag, (float)point.X + radius + 5, (float)point.Y - radius, text);
+
+            using var textPen = new SKPaint
+            {
+                Color = SKColors.White,
+                TextSize = 13,
+                IsAntialias = true
+            };
+
+            canvas.DrawText(
+                shape.Tag,
+                (float)point.X + radius + 5,
+                (float)point.Y - radius,
+                textPen);
         }
     }
 }
@@ -120,6 +164,7 @@ public sealed class WriteableBitmapSurface : Image, IRenderSurface
         var width = Math.Max(1, (int)ActualWidth);
         var height = Math.Max(1, (int)ActualHeight);
         var visual = new DrawingVisual();
+
         using (var context = visual.RenderOpen())
         {
             WpfCoordinateTools.DrawScene(context, _document, new Size(width, height));
@@ -127,6 +172,7 @@ public sealed class WriteableBitmapSurface : Image, IRenderSurface
 
         var source = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         source.Render(visual);
+
         var bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Pbgra32, null);
         var pixels = new byte[width * height * 4];
         source.CopyPixels(pixels, width * 4, 0);
@@ -157,7 +203,8 @@ public sealed class RendererPage : RenderPageBase
 {
     private readonly IRenderSurface _surface;
 
-    public RendererPage(IRenderSurface surface) : base(surface.Element)
+    public RendererPage(IRenderSurface surface)
+        : base(surface.Element)
     {
         _surface = surface;
     }
