@@ -2,11 +2,49 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using TVisionUpperDemp.Models;
+
 namespace TVisionUpperDemp.Rendering;
+
+// Compatibility drawing helper retained for older callers.
 public static class WpfDrawingTools
 {
- public static void DrawScene(DrawingContext dc,DrawingDocument doc,Size size){dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(9,17,29)),null,new Rect(size));DrawAxes(dc,doc,size);foreach(var shape in doc.Shapes)DrawShape(dc,doc,shape,size);}
- public static void DrawAxes(DrawingContext dc,DrawingDocument doc,Size size){var t=doc.Transform;var origin=t.ToScreen(new(),size);var grid=new Pen(new SolidColorBrush(Color.FromRgb(27,45,67)),1);double step=Math.Clamp(50*t.Scale,18,90);for(double x=origin.X%step;x<size.Width;x+=step)dc.DrawLine(grid,new(x,0),new(x,size.Height));for(double y=origin.Y%step;y<size.Height;y+=step)dc.DrawLine(grid,new(0,y),new(size.Width,y));var axis=new Pen(new SolidColorBrush(Color.FromRgb(76,164,232)),2);if(doc.Transform.AxisMode!=AxisMode.SecondQuadrant)dc.DrawLine(axis,new(0,origin.Y),new(size.Width,origin.Y));dc.DrawLine(axis,new(origin.X,0),new(origin.X,size.Height));for(int i=-30;i<=30;i++){var p=t.ToScreen(new Point(i*50,0),size);if(p.X>=0&&p.X<size.Width){dc.DrawLine(grid,new(p.X,origin.Y-4),new(p.X,origin.Y+4));if(i!=0)dc.DrawText(new FormattedText((i*50).ToString(CultureInfo.InvariantCulture),CultureInfo.InvariantCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI"),10,Brushes.Gray,1),new(p.X+3,origin.Y+5));}}}
- public static void DrawShape(DrawingContext dc,DrawingDocument doc,DrawShape s,Size size){var p=doc.Transform.ToScreen(s.Position,size);var stroke=new Pen(s.Stroke??new SolidColorBrush(Color.FromRgb(77,205,185)),2);var fill=s.Fill??new SolidColorBrush(Color.FromArgb(45,77,205,185));var z=s.Size*doc.Transform.Scale;switch(s.Kind){case ShapeKind.Text:dc.DrawText(new FormattedText($"{s.Tag}\n({s.Position.X:0},{s.Position.Y:0})",CultureInfo.InvariantCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI"),14,Brushes.White,1),p);break;case ShapeKind.Rectangle:dc.DrawRoundedRectangle(fill,stroke,new(p.X-z,p.Y-z/2,z*2,z),6,6);break;case ShapeKind.Triangle:dc.DrawGeometry(fill,stroke,Polygon(new[]{new(p.X,p.Y-z),new(p.X-z,p.Y+z),new(p.X+z,p.Y+z)}));break;case ShapeKind.Polygon:dc.DrawGeometry(fill,stroke,Polygon(new[]{new(p.X,p.Y-z),new(p.X+z,p.Y-z/3),new(p.X+z/2,p.Y+z),new(p.X-z/2,p.Y+z),new(p.X-z,p.Y-z/3)}));break;case ShapeKind.Line:case ShapeKind.Arrow:var end=new Point(p.X+z*1.8,p.Y-z*.7);dc.DrawLine(stroke,p,end);if(s.Kind==ShapeKind.Arrow){dc.DrawLine(stroke,end,new(end.X-z*.25,end.Y-z*.1));dc.DrawLine(stroke,end,new(end.X-z*.08,end.Y+z*.25));}break;case ShapeKind.Arc:var g=new StreamGeometry();using(var c=g.Open()){c.BeginFigure(new(p.X-z,p.Y),false,false);c.ArcTo(new(p.X+z,p.Y),new(z,z),0,false,SweepDirection.Clockwise,true);}dc.DrawGeometry(null,stroke,g);break;case ShapeKind.Ring:dc.DrawEllipse(null,new(stroke.Brush,Math.Max(2,8*doc.Transform.Scale)),p,z,z);break;case ShapeKind.Ellipse:dc.DrawEllipse(fill,stroke,p,z*1.2,z*.7);break;}}
- static StreamGeometry Polygon(IEnumerable<Point> points){var g=new StreamGeometry();using var c=g.Open();var a=points.ToArray();c.BeginFigure(a[0],true,true);c.PolyLineTo(a.Skip(1),true,true);return g;}
+    public static void DrawScene(DrawingContext drawingContext, DrawingDocument document, Size size)
+    {
+        WpfCoordinateTools.DrawScene(drawingContext, document, size);
+    }
+
+    public static void DrawAxes(DrawingContext drawingContext, DrawingDocument document, Size size)
+    {
+        WpfCoordinateTools.DrawCoordinateSystem(drawingContext, document, size);
+    }
+
+    public static void DrawShape(DrawingContext drawingContext, DrawingDocument document, DrawShape shape, Size size)
+    {
+        WpfCoordinateTools.DrawShape(drawingContext, document, shape, size);
+    }
+
+    private static StreamGeometry Polygon(IEnumerable<Point> points)
+    {
+        var values = points.ToList();
+        var geometry = new StreamGeometry();
+        using var context = geometry.Open();
+        context.BeginFigure(values[0], true, true);
+        context.PolyLineTo(values, true, true);
+        return geometry;
+    }
+
+    private static void DrawArrow(DrawingContext drawingContext, Point start, Point end, Pen pen)
+    {
+        var direction = end - start;
+        if (direction.LengthSquared < double.Epsilon)
+        {
+            return;
+        }
+
+        direction.Normalize();
+        var normal = new Vector(-direction.Y, direction.X);
+        var basePoint = end - direction * 12;
+        drawingContext.DrawLine(pen, end, basePoint + normal * 5);
+        drawingContext.DrawLine(pen, end, basePoint - normal * 5);
+    }
 }

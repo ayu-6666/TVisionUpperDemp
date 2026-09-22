@@ -67,7 +67,8 @@ public static class WpfCoordinateTools
             }
         }
 
-        dc.DrawText(new FormattedText("O (0, 0)", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+        dc.DrawText(new FormattedText(
+            "O (0, 0)", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
             new Typeface("Segoe UI Semibold"), 11, Brushes.White, 1), origin + new Vector(8, 8));
     }
 
@@ -81,63 +82,96 @@ public static class WpfCoordinateTools
         switch (shape.Kind)
         {
             case ShapeKind.Text:
-                dc.DrawText(new FormattedText($"{shape.Tag}\n({shape.Position.X:0}, {shape.Position.Y:0})",
-                    CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 14,
-                    Brushes.White, 1), point);
+                dc.DrawText(new FormattedText(
+                    $"{shape.Tag}\n({shape.Position.X:0}, {shape.Position.Y:0})",
+                    CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                    new Typeface("Segoe UI"), 14, Brushes.White, 1), point);
                 break;
             case ShapeKind.Rectangle:
-                dc.DrawRoundedRectangle(fill, stroke, new Rect(point.X - radius, point.Y - radius / 2, radius * 2, radius), 6, 6);
+                dc.DrawRoundedRectangle(fill, stroke,
+                    new Rect(point.X - radius, point.Y - radius / 2, radius * 2, radius), 6, 6);
                 break;
             case ShapeKind.Triangle:
-                dc.DrawGeometry(fill, stroke, Polygon(new[] { new Point(point.X, point.Y - radius), new Point(point.X - radius, point.Y + radius), new Point(point.X + radius, point.Y + radius) }));
+                dc.DrawGeometry(fill, stroke, Polygon(new[]
+                {
+                    new Point(point.X, point.Y - radius),
+                    new Point(point.X - radius, point.Y + radius),
+                    new Point(point.X + radius, point.Y + radius)
+                }));
                 break;
             case ShapeKind.Polygon:
-                dc.DrawGeometry(fill, stroke, Polygon(new[] { new Point(point.X, point.Y - radius), new Point(point.X + radius, point.Y - radius / 3), new Point(point.X + radius / 2, point.Y + radius), new Point(point.X - radius / 2, point.Y + radius), new Point(point.X - radius, point.Y - radius / 3) }));
+                dc.DrawGeometry(fill, stroke, Polygon(new[]
+                {
+                    new Point(point.X, point.Y - radius),
+                    new Point(point.X + radius, point.Y - radius / 3),
+                    new Point(point.X + radius / 2, point.Y + radius),
+                    new Point(point.X - radius / 2, point.Y + radius),
+                    new Point(point.X - radius, point.Y - radius / 3)
+                }));
                 break;
             case ShapeKind.Line:
             case ShapeKind.Arrow:
                 var end = new Point(point.X + radius * 1.8, point.Y - radius * .7);
                 dc.DrawLine(stroke, point, end);
-                if (shape.Kind == ShapeKind.Arrow) DrawArrow(dc, point, end, stroke);
+                if (shape.Kind == ShapeKind.Arrow)
+                {
+                    DrawArrow(dc, point, end, stroke);
+                }
                 break;
             case ShapeKind.Arc:
                 var geometry = new StreamGeometry();
                 using (var context = geometry.Open())
                 {
                     context.BeginFigure(new Point(point.X - radius, point.Y), false, false);
-                    context.ArcTo(new Point(point.X + radius, point.Y), new Size(radius, radius), 0, false, SweepDirection.Clockwise, true);
+                    context.ArcTo(
+                        new Point(point.X + radius, point.Y),
+                        new Size(radius, radius),
+                        0,
+                        false,
+                        SweepDirection.Clockwise,
+                        true,
+                        false);
                 }
                 dc.DrawGeometry(null, stroke, geometry);
                 break;
             case ShapeKind.Ring:
-                dc.DrawEllipse(null, new Pen(stroke.Brush, Math.Max(2, 8 * document.Transform.Scale)), point, radius, radius);
+                dc.DrawEllipse(null,
+                    new Pen(stroke.Brush, Math.Max(2, 8 * document.Transform.Scale)),
+                    point, radius, radius);
                 break;
             case ShapeKind.Ellipse:
                 dc.DrawEllipse(fill, stroke, point, radius * 1.2, radius * .7);
                 break;
         }
 
-        dc.DrawText(new FormattedText(shape.Tag, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"), 11, Brushes.LightGray, 1), point + new Vector(radius + 5, -radius - 5));
+        dc.DrawText(new FormattedText(
+            shape.Tag, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new Typeface("Segoe UI"), 11, Brushes.LightGray, 1),
+            point + new Vector(radius + 5, -radius - 5));
     }
 
     private static void DrawArrow(DrawingContext dc, Point start, Point end, Pen pen)
     {
-        var vector = end - start;
-        vector.Normalize();
-        var normal = new Vector(-vector.Y, vector.X);
-        var basePoint = end - vector * 12;
+        var direction = end - start;
+        if (direction.LengthSquared < double.Epsilon)
+        {
+            return;
+        }
+
+        direction.Normalize();
+        var normal = new Vector(-direction.Y, direction.X);
+        var basePoint = end - direction * 12;
         dc.DrawLine(pen, end, basePoint + normal * 5);
         dc.DrawLine(pen, end, basePoint - normal * 5);
     }
 
     private static StreamGeometry Polygon(IEnumerable<Point> points)
     {
-        var values = points.ToArray();
+        var values = points.ToList();
         var geometry = new StreamGeometry();
         using var context = geometry.Open();
         context.BeginFigure(values[0], true, true);
-        context.PolyLineTo(values.Skip(1), true, true);
+        context.PolyLineTo(values, true, true);
         return geometry;
     }
 }
