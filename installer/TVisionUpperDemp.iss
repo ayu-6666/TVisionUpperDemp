@@ -5,10 +5,10 @@
   #define MyFramework "net8.0-windows"
 #endif
 #ifndef PublishDir
-  #define PublishDir "..\\artifacts\\publish\\net8.0-windows-win-x64"
+  #define PublishDir "..\artifacts\publish\net8.0-windows-win-x64"
 #endif
 #ifndef OutputDir
-  #define OutputDir "..\\artifacts"
+  #define OutputDir "..\artifacts"
 #endif
 
 [Setup]
@@ -30,17 +30,17 @@ DisableProgramGroupPage=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimp"; MessagesFile: "compiler:Languages\\ChineseSimplified.isl"
+Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "{#PublishDir}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\\TVisionUpperDemp"; Filename: "{app}\\TVisionUpperDemp.exe"
-Name: "{autodesktop}\\TVisionUpperDemp"; Filename: "{app}\\TVisionUpperDemp.exe"; Tasks: desktopicon
+Name: "{group}\TVisionUpperDemp"; Filename: "{app}\TVisionUpperDemp.exe"
+Name: "{autodesktop}\TVisionUpperDemp"; Filename: "{app}\TVisionUpperDemp.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\\TVisionUpperDemp.exe"; Description: "Launch TVisionUpperDemp"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\TVisionUpperDemp.exe"; Description: "Launch TVisionUpperDemp"; Flags: postinstall nowait skipifsilent
