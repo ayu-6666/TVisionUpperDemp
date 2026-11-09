@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'RELEASE-*'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,9 @@ jobs:
           dotnet-version: |
             6.0.x
             8.0.x
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
       - name: Restore
         run: dotnet restore TVisionUpperDemp.csproj
       - name: Build
@@ -39,34 +43,47 @@ jobs:
       - name: Publish and package
         shell: pwsh
         run: |
-          $version = "${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && github.ref_name || format('0.1.0-dev.{0}', github.run_number) }}"
-          if ($version.StartsWith("v")) { $version = $version.Substring(1) }
+          $version = "${{ github.ref_type == 'tag' && github.ref_name || format('0.1.0-dev.{0}', github.run_number) }}"
+          $version = $version -replace '^(v|RELEASE-)', ''
           ./scripts/publish.ps1 -Framework "${{ matrix.framework }}" -Version $version
-      - name: Upload package
+          $publishDir = Join-Path $PWD "artifacts/publish/${{ matrix.framework }}-win-x64"
+          $outputDir = Join-Path $PWD "artifacts"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { throw "Inno Setup compiler not found: $iscc" }
+          & $iscc "/DMyAppVersion=$version" "/DMyFramework=${{ matrix.framework }}" "/DPublishDir=$publishDir" "/DOutputDir=$outputDir" "installer/TVisionUpperDemp.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+      - name: Upload ZIP package
         uses: actions/upload-artifact@v4
         with:
           name: package-${{ matrix.framework }}-win-x64
           path: artifacts/TVisionUpperDemp-${{ matrix.framework }}-win-x64.zip
           if-no-files-found: error
           retention-days: 14
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.framework }}-win-x64
+          path: artifacts/TVisionUpperDemp-Setup-${{ matrix.framework }}-win-x64.exe
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     name: Create GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/RELEASE-')
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download packages
+      - name: Download all packages
         uses: actions/download-artifact@v4
         with:
           path: release-assets
-          pattern: package-*
+          pattern: '*-win-x64'
           merge-multiple: true
       - name: Generate SHA256 checksums
         shell: bash
         run: |
           cd release-assets
-          sha256sum *.zip > SHA256SUMS.txt
+          sha256sum *.zip *.exe > SHA256SUMS.txt
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -74,4 +91,5 @@ jobs:
           generate_release_notes: true
           files: |
             release-assets/*.zip
+            release-assets/*.exe
             release-assets/SHA256SUMS.txt
