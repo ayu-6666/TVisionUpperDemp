@@ -19,13 +19,13 @@ if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 if (Test-Path $packagePath) { Remove-Item $packagePath -Force }
 New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
 
-Write-Host "Publishing $Framework for $Runtime ($Configuration), version $Version..."
+Write-Host "Publishing self-contained $Framework for $Runtime ($Configuration), version $Version..."
 $publishArgs = @(
     "publish", $project,
     "--configuration", $Configuration,
     "--framework", $Framework,
     "--runtime", $Runtime,
-    "--self-contained", "false",
+    "--self-contained", "true",
     "--output", $publishDir,
     "-p:Version=$Version"
 )
